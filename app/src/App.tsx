@@ -1,16 +1,24 @@
-import { useEffect, useState } from "react";
 import { Socket, io } from "socket.io-client";
-import { Todo } from "types/todo-types";
-import {
-  ClientToServerEvents,
-  ServerToClientEvents,
-} from "../../types/socket-types";
-import TodoPanel from "./TodoPanel";
-import { listTodos } from "./lib/api";
+import { ClientToServerEvents, ServerToClientEvents } from "types/socket-types";
+import { BrowserRouter as Router, Route, Routes, Link } from "react-router-dom";
+import TodoPage from "./pages/TodoPage";
+import ListPage from "./pages/ListPage";
+import logo from "/dodo2.png";
+import TodoContext from "./lib/TodoContext";
+import { useEffect, useState } from "react";
+import { Todo, TodoList } from "types/todo-types";
+import { Dictionary, keyBy } from "lodash";
+import { listAllTodos } from "./lib/api";
+
+const SESSION_ID_KEY = "dodo-session-id";
 
 const socket: Socket<ServerToClientEvents, ClientToServerEvents> = io(
   "ws://localhost:8080",
-  { transports: ["websocket", "polling", "flashsocket"] }
+  {
+    withCredentials: true,
+    auth: { sessionId: localStorage.getItem(SESSION_ID_KEY) },
+    transports: ["websocket", "polling", "flashsocket"],
+  }
 );
 
 socket.on("disconnect", (reason, desc) => {
@@ -27,22 +35,70 @@ socket.on("connect_error", (err) => {
 });
 
 export default function App() {
-  const [todos, setTodos] = useState<Todo[]>([]);
+  const [todoLists, setTodoLists] = useState<Dictionary<TodoList>>({});
+  const [todos, setTodos] = useState<Dictionary<Dictionary<Todo>>>({});
 
   useEffect(() => {
-    listTodos().then((newTodos) => {
-      console.log("newTodos", newTodos);
-      setTodos(newTodos);
+    listAllTodos().then((allTodos) => setTodos(allTodos));
+
+    socket.on("connect", () => {
+      const sessionId = localStorage.getItem(SESSION_ID_KEY);
+      if (!sessionId) {
+        socket.on("session", ({ sessionId }) => {
+          socket.auth = { sessionId };
+          localStorage.setItem(SESSION_ID_KEY, sessionId);
+        });
+      }
     });
 
-    socket.on("newTodo", (todo) => {
-      console.log("received new todo:", todo);
-      setTodos((prevTodos) => [...prevTodos, todo]);
+    socket.on("todoLists", (newTodoLists) => {
+      console.log(
+        "newTodoLists",
+        newTodoLists.map((l) => l.title)
+      );
+      setTodoLists(keyBy(newTodoLists, "id"));
+    });
+
+    socket.on("todo", (listId, todo) => {
+      console.log("received todo:", todo);
+      setTodos((prevTodos) => {
+        const newTodoList = { ...prevTodos[listId], [todo.id]: todo };
+        const newTodos = {
+          ...prevTodos,
+          [listId]: newTodoList,
+        };
+        console.log("newTodos", newTodos);
+        return newTodos;
+      });
     });
     return () => {
-      socket.off("newTodo");
+      socket.off("todoLists");
+      socket.off("todo");
     };
   }, []);
 
-  return <TodoPanel todos={todos} />;
+  console.log("todoLists", todoLists);
+  console.log("todos", todos);
+  return (
+    <Router>
+      <TodoContext.Provider value={{ socket, todoLists, todos }}>
+        <div className="pb-10">
+          <header>
+            <Link to="/">
+              <div className="flex flex-row items-center m-3">
+                <img src={logo} className="h-[4em] m-1" alt="Logo" />
+                <h1>Dodo</h1>
+              </div>
+            </Link>
+          </header>
+          <nav></nav>
+
+          <Routes>
+            <Route path=":listId" element={<TodoPage />} />
+            <Route path="/" element={<ListPage />} />
+          </Routes>
+        </div>
+      </TodoContext.Provider>
+    </Router>
+  );
 }
