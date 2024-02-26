@@ -17,12 +17,18 @@ export default function NewListCard() {
       />
       <button
         className="button-large"
+        disabled={!newListTitle}
         onClick={() => {
           socket
             ?.timeout(1000)
             .emitWithAck("createTodoList", newListTitle)
-            .then(({ id }) => {
-              navigate(`/${id}`);
+            .then(({ id, err }) => {
+              if (err) {
+                console.error();
+              }
+              if (id) {
+                navigate(`/${id}`);
+              }
             });
         }}
       >

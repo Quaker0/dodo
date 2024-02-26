@@ -1,4 +1,4 @@
-import { Todo } from "types/todo-types";
+import { Todo, TodoList } from "types/todo-types";
 
 const SERVER_URL = "http://localhost:8080";
 
@@ -22,7 +22,7 @@ const SERVER_URL = "http://localhost:8080";
 //   return response.json();
 // }
 
-export async function getTodoList(listId: string) {
+export async function getTodoList(listId: string): Promise<TodoList> {
   const response = await fetch(`${SERVER_URL}/lists/${listId}`, {
     method: "GET",
   });

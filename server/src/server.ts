@@ -109,7 +109,7 @@ io.on("connection", (socket) => {
 
   socket.on("createTodoList", (title, callback) => {
     if (!title) {
-      callback({ success: false, err: "Missing title" });
+      return callback({ success: false, err: "Missing title" });
     }
     const newList = {
       id: uid(),

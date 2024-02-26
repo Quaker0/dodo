@@ -25,6 +25,5 @@ export default function TodoPage() {
     console.log("empty", listId, todos);
     return;
   }
-  const todoList = Object.values(todos?.[listId] || {});
-  return <TodoPanel todos={todoList} listId={listId} />;
+  return <TodoPanel todos={todos?.[listId]} listId={listId} />;
 }
