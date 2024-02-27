@@ -19,17 +19,16 @@ export default function NewListCard() {
         className="button-large"
         disabled={!newListTitle}
         onClick={() => {
-          socket
-            ?.timeout(1000)
-            .emitWithAck("createTodoList", newListTitle)
-            .then(({ id, err }) => {
-              if (err) {
-                console.error();
+          if (socket) {
+            socket.sendNewList(newListTitle, ({ success, err, id }) => {
+              if (!success) {
+                console.error(err);
               }
               if (id) {
                 navigate(`/${id}`);
               }
             });
+          }
         }}
       >
         + Create new list

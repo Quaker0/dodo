@@ -16,7 +16,7 @@ export default function TodoCard({ todo, onChange }: TodoCardProps) {
   return (
     <div id={`todo-card-${todo.id}`} className="card clickable-card">
       <div className="flex justify-between">
-        <div className="flex flex-row items-center gap-2">
+        <div className="flex flex-row items-center gap-2 cursor-default px-2">
           <input
             type="checkbox"
             checked={todo.checked}
@@ -30,7 +30,9 @@ export default function TodoCard({ todo, onChange }: TodoCardProps) {
             {todo?.subject}
           </label>
         </div>
-        <img src={DragIcon} width={40} height={20} draggable={false} />
+        <div className="flex items-center">
+          <img src={DragIcon} width="20em" draggable={false} />
+        </div>
       </div>
     </div>
   );

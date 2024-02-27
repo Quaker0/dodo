@@ -86,6 +86,7 @@ textarea:focus {
 .clickable-card:hover {
   box-shadow: 0px 3px 6px rgba(0, 0, 0, 0.06), 0px 12px 15px rgba(0, 0, 0, 0.1),
     0 0 0 1px rgba(0, 0, 0, 0.15);
+  cursor: grab;
 }
 
 input {

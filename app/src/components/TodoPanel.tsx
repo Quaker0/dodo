@@ -23,20 +23,20 @@ export default function TodoPanel({ todos, listId }: TodoListProps) {
 
   useEffect(() => {
     if (todos) {
-      setTodoOrder(Object.values(todos).map((t) => t.id));
+      const newTodoIds = Object.values(todos).map((t) => t.id);
+      setTodoOrder(
+        newTodoIds.sort((a, b) => todoOrder.indexOf(a) - todoOrder.indexOf(b))
+      );
     }
-  }, [todos]);
+  }, [todos, setTodoOrder]);
 
   async function onClick(subject: string) {
     if (socket && listId) {
-      socket
-        .timeout(1000)
-        .emitWithAck("newTodo", listId, subject)
-        .then(({ success, err }) => {
-          if (!success) {
-            console.error("newTodo", success, err);
-          }
-        });
+      socket.sendNewTodo(listId, subject, ({ success, err }) => {
+        if (!success) {
+          console.error("newTodo", success, err);
+        }
+      });
     }
   }
 
@@ -45,17 +45,15 @@ export default function TodoPanel({ todos, listId }: TodoListProps) {
     todo: Todo
   ) {
     if (socket && listId) {
-      socket
-        .timeout(1000)
-        .emitWithAck("updateTodo", listId, {
-          ...todo,
-          checked: event.target.checked,
-        })
-        .then(({ success, err }) => {
-          if (!success) {
-            console.error("setTodo", success, err);
-          }
-        });
+      const updatedTodo = {
+        ...todo,
+        checked: event.target.checked,
+      };
+      socket.sendUpdatedTodo(listId, updatedTodo, ({ success, err }) => {
+        if (!success) {
+          console.error("setTodo", success, err);
+        }
+      });
     }
   }
 
