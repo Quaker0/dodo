@@ -7,10 +7,10 @@ const SESSION_ID_KEY = "dodo-session-id";
 export default class SocketWrapper {
   private socket: Socket<ServerToClientEvents, ClientToServerEvents>;
   constructor() {
-    this.socket = io("ws://localhost:8080", {
+    this.socket = io("ws://localhost:3000", {
       withCredentials: true,
       auth: { sessionId: localStorage.getItem(SESSION_ID_KEY) },
-      transports: ["websocket", "polling", "flashsocket"],
+      transports: ["websocket", "polling"],
     });
 
     this.socket.on("disconnect", (reason, desc) => {
@@ -68,7 +68,8 @@ export default class SocketWrapper {
     this.socket
       ?.timeout(1000)
       .emitWithAck("createTodoList", title)
-      .then(callback);
+      .then(callback)
+      .catch((ex) => callback({ success: false, err: ex.message }));
   }
 
   joinList(
@@ -100,8 +101,7 @@ export default class SocketWrapper {
       .then(callback);
   }
 
-  offLoad() {
-    this.socket.off("todoLists");
-    this.socket.off("todo");
+  offLoadAllListeners() {
+    this.socket.offAny();
   }
 }

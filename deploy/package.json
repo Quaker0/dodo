@@ -1,0 +1,12 @@
+{
+  "name": "dodo-deploy",
+  "version": "1.0.0",
+  "author": "Niclas Bångman",
+  "license": "UNLICENSED",
+  "private": true,
+  "devDependencies": {
+    "@types/node": "^20.11.20",
+    "aws-cdk-lib": "^2.130.0",
+    "typescript": "^5.3.3"
+  }
+}

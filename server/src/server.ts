@@ -12,7 +12,7 @@ import { uid } from "uid";
 
 import { InMemorySessionStore } from "./sessionStore";
 
-const port = process.env.PORT || 8080;
+const port = process.env.PORT || 3000;
 
 const app = express();
 app.use(express.json());
@@ -26,6 +26,10 @@ const io = new Server<
   SocketData
 >(server, { cors: { origin: "http://localhost" } });
 const sessionStore = new InMemorySessionStore();
+
+function getTodoLists(rooms: Set<string>) {
+  return [...(rooms || [])].map((listId) => lists[listId]).filter(Boolean);
+}
 
 io.use((socket, next) => {
   const sessionId = socket.handshake.auth.sessionId;
@@ -66,29 +70,6 @@ app.get("/todos", (req, res) => {
   res.json(todos);
 });
 
-// app.post("/lists/:listId/todos/create", (req, res) => {
-//   const listId = req.params.listId;
-//   if (!req.body.subject) {
-//     res.status(400).send("Missing subject");
-//     return;
-//   }
-//   if (!(listId in lists)) {
-//     res.status(404).send("Todo list not found");
-//   }
-//   const newTodo = {
-//     id: uid(6),
-//     subject: req.body.subject,
-//     createdAt: Date.now(),
-//     checked: false,
-//   };
-//   if (!todos[listId]) {
-//     todos[listId] = {};
-//   }
-//   todos[listId][newTodo.id] = newTodo;
-//   io.to(listId).emit("todo", listId, newTodo);
-//   res.sendStatus(201);
-// });
-
 io.on("connection", (socket) => {
   console.log("connection");
   sessionStore.createSessionIfNotExists(socket.data.sessionId, {
@@ -102,10 +83,7 @@ io.on("connection", (socket) => {
     sessionId: socket.data.sessionId,
   });
 
-  socket.emit(
-    "todoLists",
-    [...(session.rooms || [])].map((listId) => lists[listId]).filter(Boolean)
-  );
+  socket.timeout(1000).emit("todoLists", getTodoLists(session.rooms));
 
   socket.on("createTodoList", (title, callback) => {
     if (!title) {
@@ -120,10 +98,7 @@ io.on("connection", (socket) => {
     lists[newList.id] = newList;
     sessionStore.addRoom(socket.data.sessionId, newList.id);
     socket.join(newList.id);
-    socket.emit(
-      "todoLists",
-      [...socket.rooms].map((listId) => lists[listId]).filter(Boolean)
-    );
+    socket.timeout(1000).emit("todoLists", getTodoLists(session.rooms));
     callback({ success: true, id: newList.id });
   });
 
@@ -131,7 +106,10 @@ io.on("connection", (socket) => {
     if (listId in lists) {
       console.log("joinList", listId);
       socket.join(listId);
-      sessionStore.addRoom(socket.data.sessionId, listId);
+      if (!sessionStore.findSession(listId)) {
+        sessionStore.addRoom(socket.data.sessionId, listId);
+        socket.timeout(1000).emit("todoLists", getTodoLists(session.rooms));
+      }
       console.log("joined list", listId, socket.rooms);
       callback({ success: true });
     } else {
