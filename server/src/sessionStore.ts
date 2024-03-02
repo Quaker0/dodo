@@ -18,9 +18,9 @@ export class InMemorySessionStore {
     }
   }
 
-  addRoom(id: string, room: string) {
+  addRoom(id: string, ...room: string[]) {
     const session = this.sessions.get(id) || { sessionId: id };
-    session.rooms = new Set([...(session?.rooms || []), room]);
+    session.rooms = new Set([...(session?.rooms || []), ...room]);
     this.sessions.set(id, session);
   }
 }

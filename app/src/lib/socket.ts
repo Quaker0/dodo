@@ -1,6 +1,6 @@
 import { Socket, io } from "socket.io-client";
 import { ClientToServerEvents, ServerToClientEvents } from "types/socket-types";
-import { Todo, TodoList } from "types/todo-types";
+import { TodoTask, TodoList } from "types/todo-types";
 
 const SESSION_ID_KEY = "dodo-session-id";
 
@@ -39,17 +39,25 @@ export default class SocketWrapper {
 
   onTodoLists(callback: (l: TodoList[]) => void) {
     this.socket.on("todoLists", (newTodoLists) => {
-      console.log(
-        "newTodoLists",
-        newTodoLists.map((l) => l.title)
-      );
       callback(newTodoLists);
     });
   }
 
-  onTodo(callback: (listId: string, todo: Todo) => void) {
+  onList(callback: (list: TodoList) => void) {
+    this.socket.on("list", (list) => {
+      callback(list);
+    });
+  }
+
+  onTodo(callback: (listId: string, todo: TodoTask) => void) {
     this.socket.on("todo", (listId, todo) => {
       callback(listId, todo);
+    });
+  }
+
+  onTodos(callback: (todos: Record<string, Record<string, TodoTask>>) => void) {
+    this.socket.on("todos", (todos) => {
+      callback(todos);
     });
   }
 
@@ -76,7 +84,11 @@ export default class SocketWrapper {
     listId: string,
     callback: ({ success, err }: { success: boolean; err?: string }) => void
   ) {
-    this.socket?.timeout(1000).emitWithAck("joinList", listId).then(callback);
+    this.socket
+      ?.timeout(1000)
+      .emitWithAck("joinList", listId)
+      .then(callback)
+      .catch((ex) => callback({ success: false, err: ex.message }));
   }
 
   sendNewTodo(
@@ -87,18 +99,34 @@ export default class SocketWrapper {
     this.socket
       .timeout(1000)
       .emitWithAck("newTodo", listId, subject)
-      .then(callback);
+      .then(callback)
+      .catch((ex) => callback({ success: false, err: ex.message }));
   }
 
   sendUpdatedTodo(
     listId: string,
-    todo: Todo,
+    todo: TodoTask,
     callback: ({ success, err }: { success: boolean; err?: string }) => void
   ) {
     this.socket
       .timeout(1000)
       .emitWithAck("updateTodo", listId, todo)
-      .then(callback);
+      .then(callback)
+      .catch((ex) => callback({ success: false, err: ex.message }));
+  }
+
+  sendMoveTodo(
+    listId: string,
+    todoId: string,
+    toParentId: string,
+    toOrderIdx: number,
+    callback: ({ success, err }: { success: boolean; err?: string }) => void
+  ) {
+    this.socket
+      .timeout(1000)
+      .emitWithAck("moveTodo", listId, todoId, toParentId, toOrderIdx)
+      .then(callback)
+      .catch((ex) => callback({ success: false, err: ex.message }));
   }
 
   offLoadAllListeners() {

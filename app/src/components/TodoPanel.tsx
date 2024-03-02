@@ -1,61 +1,27 @@
-import { DragEvent, useContext, useEffect, useState } from "react";
-import { Todo, TodoList } from "types/todo-types";
+import { DragEvent, useContext, useState } from "react";
+import { Link } from "react-router-dom";
+import { TodoTask } from "types/todo-types";
 import TodoContext from "../lib/TodoContext";
-import { getTodoList } from "../lib/api";
 import NewTodoCard from "./NewTodoCard";
-import TodoCard from "./TodoCard";
+import { RecursiveTodoCard } from "./TodoCard";
 
 type TodoListProps = {
-  todos: Record<string, Todo> | undefined;
+  todos: Record<string, TodoTask> | undefined;
   listId: string | undefined;
+  onNewTodoClick: (subject: string) => Promise<void>;
+  onChangeTodoClick: (
+    event: React.ChangeEvent<HTMLInputElement>,
+    todo: TodoTask
+  ) => Promise<void>;
 };
 
-export default function TodoPanel({ todos, listId }: TodoListProps) {
-  const [todoList, setTodoList] = useState<TodoList>();
-  const [todoOrder, setTodoOrder] = useState<string[]>([]);
-  const { socket } = useContext(TodoContext);
-
-  useEffect(() => {
-    if (listId) {
-      getTodoList(listId).then((todoList) => setTodoList(todoList));
-    }
-  }, [listId]);
-
-  useEffect(() => {
-    if (todos) {
-      const newTodoIds = Object.values(todos).map((t) => t.id);
-      setTodoOrder(
-        newTodoIds.sort((a, b) => todoOrder.indexOf(a) - todoOrder.indexOf(b))
-      );
-    }
-  }, [todos, setTodoOrder]);
-
-  async function onClick(subject: string) {
-    if (socket && listId) {
-      socket.sendNewTodo(listId, subject, ({ success, err }) => {
-        if (!success) {
-          console.error("newTodo", success, err);
-        }
-      });
-    }
-  }
-
-  async function onChange(
-    event: React.ChangeEvent<HTMLInputElement>,
-    todo: Todo
-  ) {
-    if (socket && listId) {
-      const updatedTodo = {
-        ...todo,
-        checked: event.target.checked,
-      };
-      socket.sendUpdatedTodo(listId, updatedTodo, ({ success, err }) => {
-        if (!success) {
-          console.error("setTodo", success, err);
-        }
-      });
-    }
-  }
+export default function TodoPanel({
+  todos,
+  listId,
+  onNewTodoClick,
+  onChangeTodoClick,
+}: TodoListProps) {
+  const { socket, todoLists } = useContext(TodoContext);
 
   const [dragItemId, setDragItemId] = useState<string>();
   const [dragOverItemId, setDragOverItemId] = useState<string>();
@@ -65,15 +31,19 @@ export default function TodoPanel({ todos, listId }: TodoListProps) {
     e.dataTransfer.effectAllowed = "move";
   }
 
-  function handleDragEnter(e: DragEvent<HTMLDivElement>) {
-    e.dataTransfer.effectAllowed = "move";
+  function handleDragEnter(e: DragEvent<HTMLDivElement>, subTask?: boolean) {
     e.preventDefault();
     e.stopPropagation();
+    e.dataTransfer.effectAllowed = "move";
     const dragOverElem = document.getElementById(e.currentTarget.id);
-    if (dragOverElem && dragOverItemId !== e.currentTarget.id) {
+    if (dragOverElem) {
       removeDragHoverEffect(dragOverItemId);
-      dragOverElem.classList.add("drag-hover");
       setDragOverItemId(e.currentTarget.id);
+      if (subTask) {
+        dragOverElem.classList.add("drag-hover-below");
+      } else {
+        dragOverElem.classList.add("drag-hover");
+      }
     }
   }
 
@@ -81,7 +51,7 @@ export default function TodoPanel({ todos, listId }: TodoListProps) {
     if (elementId) {
       const oldDragOverElem = document.getElementById(elementId);
       if (oldDragOverElem) {
-        oldDragOverElem.classList.remove("drag-hover");
+        oldDragOverElem.classList.remove("drag-hover", "drag-hover-below");
       }
     }
   }
@@ -93,20 +63,55 @@ export default function TodoPanel({ todos, listId }: TodoListProps) {
     removeDragHoverEffect(dragItemId);
     removeDragHoverEffect(dragOverItemId);
 
-    if (dragItemId && dragOverItemId && dragItemId !== dragOverItemId) {
-      const newTodoOrder = [...todoOrder];
-      const moveFrom = newTodoOrder.indexOf(dragItemId);
-      const moveTo = newTodoOrder.indexOf(dragOverItemId);
-      newTodoOrder.splice(moveFrom, 1);
-      newTodoOrder.splice(moveTo, 0, dragItemId);
-      setTodoOrder(newTodoOrder);
-      const dragOverElem = document.getElementById(e.currentTarget.id);
-      if (dragOverElem) {
-        dragOverElem.classList.remove("drag-hover");
+    if (
+      listId &&
+      dragItemId &&
+      dragOverItemId &&
+      dragItemId !== dragOverItemId
+    ) {
+      let parentId = todos?.[dragOverItemId]?.parentId || todoList.id;
+      if (parentId === dragItemId) {
+        parentId = todos?.[dragItemId]?.parentId || todoList.id;
       }
+      socket?.sendMoveTodo(
+        listId,
+        dragItemId,
+        parentId,
+        todoLists[parentId].order.indexOf(dragOverItemId),
+        ({ success, err }) => {
+          if (!success) {
+            console.error(err);
+          }
+        }
+      );
     }
     setDragItemId(undefined);
     setDragOverItemId(undefined);
+  }
+
+  function handleSubTaskDragDrop(e: DragEvent<HTMLDivElement>) {
+    e.stopPropagation();
+    e.preventDefault();
+
+    if (
+      listId &&
+      dragItemId &&
+      dragOverItemId &&
+      dragItemId !== dragOverItemId
+    ) {
+      socket?.sendMoveTodo(
+        listId,
+        dragItemId,
+        dragOverItemId,
+        0,
+        ({ success, err }) => {
+          if (!success) {
+            console.error(err);
+          }
+        }
+      );
+      removeDragHoverEffect(dragOverItemId);
+    }
   }
 
   function handleDragEnd() {
@@ -114,28 +119,42 @@ export default function TodoPanel({ todos, listId }: TodoListProps) {
     removeDragHoverEffect(dragOverItemId);
   }
 
+  if (!listId || !todoLists[listId]) {
+    if (todoLists) {
+      return (
+        <div className="text-center">Nothing here... keep on waddling</div>
+      );
+    }
+    // Not received the todo lists yet
+    return;
+  }
+
+  const todoList = todoLists[listId];
+
   return (
-    <>
+    <div className="flex flex-col items-center gap-3">
+      <div>
+        <Link to="/" className="text-[darkblue] mr-1">
+          All Todo Lists
+        </Link>
+        &gt; {todoList?.title}
+      </div>
       <h2>{todoList?.title}</h2>
+      <NewTodoCard onClick={onNewTodoClick} />
       <div className="flex flex-col items-center justify-center gap-3">
-        {todoOrder?.map((todoId) => (
-          <div
+        {todoList.order.map((todoId) => (
+          <RecursiveTodoCard
+            todo={todos?.[todoId]}
+            onChange={onChangeTodoClick}
             onDragStart={handleDragStart}
             onDragEnter={handleDragEnter}
-            onDragOver={(e) => {
-              e.preventDefault();
-            }}
             onDrop={handleDragDrop}
             onDragEnd={handleDragEnd}
-            draggable
-            id={todoId}
-            key={`todo-card-${todoId}`}
-          >
-            <TodoCard todo={todos?.[todoId]} onChange={onChange} />
-          </div>
+            onSubTaskDrop={handleSubTaskDragDrop}
+            key={`todo-card-${listId}-${todoId}`}
+          />
         ))}
-        <NewTodoCard onClick={onClick} />
       </div>
-    </>
+    </div>
   );
 }

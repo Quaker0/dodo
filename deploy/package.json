@@ -8,5 +8,8 @@
     "@types/node": "^20.11.20",
     "aws-cdk-lib": "^2.130.0",
     "typescript": "^5.3.3"
+  },
+  "dependencies": {
+    "@aws-solutions-constructs/aws-cloudfront-s3": "^2.53.0"
   }
 }

@@ -10,22 +10,24 @@ export default function ListPage() {
     <div className="flex justify-center h-full flex-col items-center gap-5">
       <NewListCard />
       <div className="flex flex-col gap-2">
-        {Object.entries(todoLists).map(([todoListId, todoList]) => (
-          <Link to={`/${todoListId}`} key={todoListId} draggable={false}>
-            <div className="card flex flex-row justify-between">
-              <div>{todoList?.title}</div>
-              <div>
-                {
-                  Object.values(todos?.[todoListId] || {}).filter(
-                    (todo) => todo.checked
-                  ).length
-                }
-                /{Object.values(todos?.[todoListId] || {}).length}{" "}
-                <span className="text-[green]">✔</span>
+        {Object.values(todoLists)
+          .filter((todoList) => todoList.grandfather)
+          .map((todoList) => (
+            <Link to={`/${todoList.id}`} key={todoList.id} draggable={false}>
+              <div className="card flex flex-row justify-between">
+                <div>{todoList?.title}</div>
+                <div className="whitespace-nowrap">
+                  {
+                    Object.values(todos?.[todoList.id] || {}).filter(
+                      (todo) => todo.checked
+                    ).length
+                  }
+                  /{Object.values(todos?.[todoList.id] || {}).length}{" "}
+                  <span className="text-[green]">✔</span>
+                </div>
               </div>
-            </div>
-          </Link>
-        ))}
+            </Link>
+          ))}
       </div>
     </div>
   );

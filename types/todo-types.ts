@@ -1,22 +1,14 @@
-export type Todo = {
+export interface TodoTask {
   id: string;
+  listId: string;
   subject: string;
-  createdAt: number;
   checked: boolean;
-};
+  parentId?: string;
+}
 
 export type TodoList = {
   id: string;
-  title: string;
-  createdAt: number;
+  order: string[];
+  title?: string;
+  grandfather?: boolean;
 };
-
-export function isValidTodo(todo: Record<any, any>): todo is Todo {
-  return (
-    todo &&
-    todo?.id &&
-    todo?.subject &&
-    "createdAt" in todo &&
-    "checked" in todo
-  );
-}

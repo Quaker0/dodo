@@ -10,10 +10,12 @@ export default function NewListCard() {
   return (
     <div className="card flex flex-row gap-2">
       <input
+        className="flex-grow"
         type="text"
         onChange={(e) => {
           setNewListTitle(e.target.value);
         }}
+        placeholder="Name your todo list"
       />
       <button
         className="button-large"

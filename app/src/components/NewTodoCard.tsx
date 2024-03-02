@@ -6,7 +6,6 @@ type NewTodoProps = {
 
 export default function NewTodoCard({ onClick }: NewTodoProps) {
   const [subjectInput, setSubjectInput] = useState("");
-
   const validState = Boolean(subjectInput && subjectInput.replace(/\s/g, ""));
 
   return (
@@ -21,9 +20,7 @@ export default function NewTodoCard({ onClick }: NewTodoProps) {
         />
         <div>
           <button
-            className={`button-round disabled:cursor-not-allowed  ${
-              validState ? "" : "disabled"
-            }`}
+            className="button-round"
             onClick={() => {
               setSubjectInput("");
               onClick(subjectInput);

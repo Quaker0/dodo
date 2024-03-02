@@ -1,16 +1,18 @@
+import cors from "cors";
 import express from "express";
-import { Server } from "socket.io";
 import { createServer } from "node:http";
+import { Server, Socket } from "socket.io";
 import {
   ClientToServerEvents,
   ServerToClientEvents,
   SocketData,
 } from "types/socket-types";
-import { Todo, TodoList } from "types/todo-types";
-import cors from "cors";
+import { TodoTask, TodoList } from "types/todo-types";
 import { uid } from "uid";
-
+import { pick } from "lodash";
 import { InMemorySessionStore } from "./sessionStore";
+import { List, Todo } from "./todoClasses";
+import { addListListeners, getTodoLists } from "./helpers";
 
 const port = process.env.PORT || 3000;
 
@@ -27,120 +29,167 @@ const io = new Server<
 >(server, { cors: { origin: "http://localhost" } });
 const sessionStore = new InMemorySessionStore();
 
-function getTodoLists(rooms: Set<string>) {
-  return [...(rooms || [])].map((listId) => lists[listId]).filter(Boolean);
-}
+const lists: Record<string, TodoList> = {};
+const todos: Record<string, Record<string, TodoTask>> = {};
 
 io.use((socket, next) => {
   const sessionId = socket.handshake.auth.sessionId;
-  console.log("socket.handshake.auth sessionId", sessionId);
   if (sessionId) {
     const session = sessionStore.findSession(sessionId);
     if (session) {
-      console.log("found matching session");
       socket.data.sessionId = sessionId;
       return next();
     }
   } else {
-    console.log("creating new session");
     socket.data.sessionId = uid(16);
   }
   return next();
 });
 
-const lists: Record<string, TodoList> = {};
-const todos: Record<string, Record<string, Todo>> = {};
-
-app.get("/lists/:listId", (req, res) => {
-  console.log("req.params", req.params);
-  if (!(req.params.listId in lists)) {
-    res.status(404).send("Todo list not found");
-  }
-  res.json(lists[req.params.listId]);
-});
-
-app.get("/lists/:listId/todos", (req, res) => {
-  if (!(req.params.listId in lists)) {
-    res.status(404).send("Todo list not found");
-  }
-  res.json(todos[req.params.listId]);
-});
-
-app.get("/todos", (req, res) => {
-  res.json(todos);
-});
-
 io.on("connection", (socket) => {
-  console.log("connection");
   sessionStore.createSessionIfNotExists(socket.data.sessionId, {
     sessionId: socket.data.sessionId,
   });
   const session = sessionStore.findSession(socket.data.sessionId);
-  console.log("rooms", session.rooms);
   session.rooms?.forEach((room) => socket.join(room));
-
   socket.emit("session", {
     sessionId: socket.data.sessionId,
   });
 
-  socket.timeout(1000).emit("todoLists", getTodoLists(session.rooms));
+  const joinedLists = getTodoLists(session.rooms, lists);
+  socket.timeout(1000).emit("todoLists", joinedLists);
+  socket.timeout(1000).emit(
+    "todos",
+    pick(
+      todos,
+      joinedLists.map((l) => l.id)
+    )
+  );
 
   socket.on("createTodoList", (title, callback) => {
     if (!title) {
       return callback({ success: false, err: "Missing title" });
     }
-    const newList = {
-      id: uid(),
-      title,
-      createdAt: Date.now(),
-      items: {},
-    };
+    const newList = new List(title);
     lists[newList.id] = newList;
-    sessionStore.addRoom(socket.data.sessionId, newList.id);
-    socket.join(newList.id);
-    socket.timeout(1000).emit("todoLists", getTodoLists(session.rooms));
+    addListListeners(socket, sessionStore, newList.id);
+    socket.emit("todoLists", getTodoLists(session.rooms, lists));
     callback({ success: true, id: newList.id });
   });
 
   socket.on("joinList", (listId, callback) => {
     if (listId in lists) {
-      console.log("joinList", listId);
       socket.join(listId);
       if (!sessionStore.findSession(listId)) {
-        sessionStore.addRoom(socket.data.sessionId, listId);
-        socket.timeout(1000).emit("todoLists", getTodoLists(session.rooms));
+        addListListeners(socket, sessionStore, listId);
+        const joinedLists = getTodoLists(session.rooms, lists);
+        socket.timeout(1000).emit("todoLists", joinedLists);
+        socket.timeout(1000).emit(
+          "todos",
+          pick(
+            todos,
+            joinedLists.map((l) => l.id)
+          )
+        );
       }
-      console.log("joined list", listId, socket.rooms);
       callback({ success: true });
     } else {
-      console.log("joinList failed", listId);
       callback({ success: false, err: "Todo list does not exist" });
     }
   });
 
   socket.on("newTodo", (listId, subject, callback) => {
-    const newTodo = {
-      id: uid(6),
-      subject,
-      createdAt: Date.now(),
-      checked: false,
-    };
-    if (!lists[listId]) {
-      callback({ success: true, err: "Invalid list ID" });
+    const newTodo = new Todo(listId, subject, false);
+    if (!lists[listId] || !newTodo.isValid()) {
+      callback({ success: true, err: "Invalid parameters" });
     }
     if (!todos[listId]) {
       todos[listId] = {};
     }
     todos[listId][newTodo.id] = newTodo;
-    console.log("new todo", listId, newTodo);
+    lists[listId].order.push(newTodo.id);
+
     io.to(listId).emit("todo", listId, newTodo);
+    io.to(listId).emit("list", lists[listId]);
     callback({ success: true });
   });
 
   socket.on("updateTodo", (listId, todo, callback) => {
-    // if (isValidTodo(todo)) {
+    if (!Todo.isValid(todo)) {
+      return callback({ success: false, err: "Invalid todo schema" });
+    }
     todos[listId][todo.id] = todo;
     io.to(listId).emit("todo", listId, todo);
+    callback({ success: true });
+  });
+
+  function removeChildFromParent(parentId: string, childTodoId: string) {
+    if (!lists[parentId]) return;
+    const idxToRemove = lists[parentId].order?.indexOf(childTodoId);
+    if (idxToRemove != null && idxToRemove >= 0) {
+      lists[parentId].order.splice(idxToRemove, 1);
+    }
+
+    if (!lists[parentId].order?.length && !lists[parentId].grandfather) {
+      // If last child, remove parent->child link entirely
+      delete lists[parentId];
+    }
+  }
+
+  socket.on("moveTodo", (listId, todoId, toParentId, toOrderIdx, callback) => {
+    if (
+      !listId ||
+      !todoId ||
+      !toParentId ||
+      !isFinite(toOrderIdx) ||
+      toOrderIdx < 0
+    ) {
+      return callback({ success: false, err: "Invalid parameters" });
+    }
+    const fromParentId = todos[listId][todoId].parentId || listId;
+
+    if (lists[todoId]) {
+      // Found future orphans, moving children to the grandparent
+      const idx = lists[fromParentId].order.indexOf(todoId);
+      lists[todoId].order.forEach((orphanedTodoId) => {
+        lists[fromParentId].order.splice(idx, 0, orphanedTodoId);
+        todos[listId][orphanedTodoId].parentId = fromParentId;
+        removeChildFromParent(todoId, orphanedTodoId);
+      });
+      removeChildFromParent(toParentId, todoId);
+      delete lists[todoId];
+    }
+    removeChildFromParent(fromParentId, todoId);
+
+    if (!lists[toParentId]) {
+      // toParentId is not already a parent, create the parent->child link
+      lists[toParentId] = {
+        id: toParentId,
+        grandfather: false,
+        order: [todoId],
+      };
+    } else {
+      // Add another child to parent
+      const newOrder = [...lists[toParentId].order];
+      newOrder.splice(toOrderIdx, 0, todoId);
+      lists[toParentId] = { ...lists[toParentId], order: newOrder };
+    }
+    todos[listId][todoId].parentId = toParentId;
+
+    addListListeners(
+      socket,
+      sessionStore,
+      listId,
+      todoId,
+      toParentId,
+      fromParentId
+    );
+
+    io.to(listId).timeout(1000).emit("todo", listId, todos[listId][todoId]);
+    io.to(listId)
+      .timeout(1000)
+      .emit("todoLists", getTodoLists(session.rooms, lists));
+
     callback({ success: true });
   });
 });

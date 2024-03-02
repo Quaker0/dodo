@@ -1,9 +1,11 @@
-import { Todo, TodoList } from "./todo-types";
+import { TodoTask, TodoList } from "./todo-types";
 
 export interface ServerToClientEvents {
-  todo: (listId: string, t: Todo) => void;
+  todo: (listId: string, t: TodoTask) => void;
+  todos: (t: Record<string, Record<string, TodoTask>>) => void;
   session: (s: SocketData) => void;
   todoLists: (l: TodoList[]) => void;
+  list: (l: TodoList) => void;
 }
 
 export interface ClientToServerEvents {
@@ -14,7 +16,14 @@ export interface ClientToServerEvents {
   ) => void;
   updateTodo: (
     listId: string,
-    todo: Todo,
+    todo: TodoTask,
+    callback: ({ success, err }: { success: boolean; err?: string }) => void
+  ) => void;
+  moveTodo: (
+    listId: string,
+    todoId: string,
+    toParentId: string,
+    toOrderIdx: number,
     callback: ({ success, err }: { success: boolean; err?: string }) => void
   ) => void;
   joinList: (
