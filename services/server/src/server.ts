@@ -32,6 +32,10 @@ const sessionStore = new InMemorySessionStore();
 const lists: Record<string, TodoList> = {};
 const todos: Record<string, Record<string, TodoTask>> = {};
 
+app.get("/health", (req, res) => {
+  res.status(200).send("Okay");
+});
+
 io.use((socket, next) => {
   const sessionId = socket.handshake.auth.sessionId;
   if (sessionId) {

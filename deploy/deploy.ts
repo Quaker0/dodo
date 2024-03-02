@@ -1,7 +1,6 @@
 import { App, Environment, Tags } from "aws-cdk-lib";
 import ServerStack from "./lib/ServerStack";
 import InfraStack from "./lib/InfraStack";
-import StaticAppStack from "./lib/StaticAppStack";
 
 const app = new App();
 const env: Environment = { region: "us-east-1" };
