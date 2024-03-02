@@ -7,8 +7,10 @@
   "license": "UNLICENSED",
   "private": true,
   "scripts": {
-    "build": "tsc -p tsconfig.json && node dist/server.js",
-    "start": "nodemon -e ts --watch server/src/ --exec \"npm run build\""
+    "build": "tsc -p tsconfig.json",
+    "serve": "tsc -p tsconfig.json && node dist/server.js",
+    "start": "nodemon -e ts --watch server/src/ --exec \"npm run serve\"",
+    "tsc": "tsc"
   },
   "dependencies": {
     "express": "^4.18.2",

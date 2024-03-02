@@ -5,14 +5,10 @@
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
     "target": "es2022",
-    "sourceMap": true,
-    "outDir": "./dist",
-    "rootDir": "src",
     "incremental": true,
     "resolveJsonModule": true,
     "allowSyntheticDefaultImports": true,
-    "esModuleInterop": true
-  },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules"]
+    "esModuleInterop": true,
+    "types": ["node"]
+  }
 }

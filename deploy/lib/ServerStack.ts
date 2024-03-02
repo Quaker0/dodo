@@ -26,19 +26,19 @@ export default class ServerStack extends Stack {
     props.todoTaskTable.grantReadWriteData(taskDefinition.taskRole);
     props.todoListTable.grantReadWriteData(taskDefinition.taskRole);
     const dockerImageAsset = new DockerImageAsset(this, "inline-image", {
-      directory: join(__dirname, "..", "..", "server"),
+      directory: join(__dirname, "..", ".."),
     });
 
     const servicePort = 3000;
 
-    const apiContainerDef = taskDefinition.addContainer("exports-api", {
+    const containerDef = taskDefinition.addContainer("server-container", {
       image: ContainerImage.fromDockerImageAsset(dockerImageAsset),
       environment: {
         TODO_TASK_TABLE_NAME: props.todoTaskTable.tableName,
         TODO_LIST_TABLE_NAME: props.todoListTable.tableName,
       },
     });
-    apiContainerDef.addPortMappings({ containerPort: servicePort });
+    containerDef.addPortMappings({ containerPort: servicePort });
 
     new FargateService(this, "server-service", {
       taskDefinition,

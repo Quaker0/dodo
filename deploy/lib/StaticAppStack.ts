@@ -25,7 +25,7 @@ export default class StaticAppStack extends Stack {
     const certificate = Certificate.fromCertificateArn(
       this,
       "niclas-tech-certificate",
-      ""
+      "arn:aws:acm:us-east-1:491268129897:certificate/702aa21c-623d-496e-90cb-c6820cb88c3a"
     );
 
     new CloudFrontToS3(this, "staticCloudfrontS3", {
