@@ -1,7 +1,7 @@
 import cors from "cors";
 import express from "express";
 import { createServer } from "node:http";
-import { Server, Socket } from "socket.io";
+import { Server } from "socket.io";
 import {
   ClientToServerEvents,
   ServerToClientEvents,
@@ -13,6 +13,7 @@ import { pick } from "lodash";
 import { InMemorySessionStore } from "./sessionStore";
 import { List, Todo } from "./todoClasses";
 import { addListListeners, getTodoLists } from "./helpers";
+import helmet from "helmet";
 
 const port = process.env.PORT || 3000;
 
@@ -26,11 +27,18 @@ const io = new Server<
   ServerToClientEvents,
   undefined,
   SocketData
->(server, { cors: { origin: ["localhost", "niclas.tech"] } });
+>(server, {
+  cors: {
+    origin: ["localhost", "niclas.tech"],
+  },
+});
 const sessionStore = new InMemorySessionStore();
 
 const lists: Record<string, TodoList> = {};
 const todos: Record<string, Record<string, TodoTask>> = {};
+
+app.use(helmet.hidePoweredBy());
+app.use(helmet.noSniff());
 
 app.get("/health", (req, res) => {
   res.status(200).send("Okay");

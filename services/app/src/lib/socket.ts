@@ -7,7 +7,7 @@ const SESSION_ID_KEY = "dodo-session-id";
 export default class SocketWrapper {
   private socket: Socket<ServerToClientEvents, ClientToServerEvents>;
   constructor() {
-    this.socket = io(`ws://${process.env.SERVER_URL}:3000`, {
+    this.socket = io(`wss://${process.env.SERVER_URL}`, {
       withCredentials: true,
       auth: { sessionId: localStorage.getItem(SESSION_ID_KEY) },
       transports: ["websocket", "polling"],
