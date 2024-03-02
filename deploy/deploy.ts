@@ -4,7 +4,7 @@ import InfraStack from "./lib/InfraStack";
 import StaticAppStack from "./lib/StaticAppStack";
 
 const app = new App();
-const env: Environment = { region: "eu-north-1" };
+const env: Environment = { region: "us-east-1" };
 
 const infra = new InfraStack(app, "InfraStack", { env });
 Tags.of(infra).add("service", "dodo-infra");
@@ -17,5 +17,5 @@ const serverStack = new ServerStack(app, "ServerStack", {
 });
 Tags.of(serverStack).add("service", "dodo-server");
 
-const appStack = new StaticAppStack(app, "AppStack", { env: app });
+const appStack = new StaticAppStack(app, "AppStack", { env });
 Tags.of(appStack).add("service", "dodo-server");

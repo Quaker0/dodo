@@ -7,9 +7,11 @@
   "private": true,
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "build": "rm -rf dist && tsc && vite build",
+    "deploy": "aws s3 sync dist/ s3://niclas.tech/dodo --acl public-read --cache-control max-age=3600",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "tsc": "tsc"
   },
   "dependencies": {
     "lodash": "^4.17.21",

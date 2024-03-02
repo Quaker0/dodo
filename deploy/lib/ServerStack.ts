@@ -26,7 +26,7 @@ export default class ServerStack extends Stack {
     props.todoTaskTable.grantReadWriteData(taskDefinition.taskRole);
     props.todoListTable.grantReadWriteData(taskDefinition.taskRole);
     const dockerImageAsset = new DockerImageAsset(this, "inline-image", {
-      directory: join(__dirname, "..", ".."),
+      directory: join(__dirname, "..", "..", "services"),
     });
 
     const servicePort = 3000;
@@ -47,7 +47,6 @@ export default class ServerStack extends Stack {
       minHealthyPercent: 50,
       maxHealthyPercent: 200,
       desiredCount: 1,
-      healthCheckGracePeriod: Duration.seconds(10),
       propagateTags: PropagatedTagSource.TASK_DEFINITION,
     });
   }

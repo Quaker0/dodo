@@ -1,7 +1,12 @@
-import { App, Stack, StackProps } from "aws-cdk-lib";
+import { App, RemovalPolicy, Stack, StackProps } from "aws-cdk-lib";
 import { Certificate } from "aws-cdk-lib/aws-certificatemanager";
 import { PriceClass } from "aws-cdk-lib/aws-cloudfront";
-import { Bucket, BucketAccessControl, HttpMethods } from "aws-cdk-lib/aws-s3";
+import {
+  Bucket,
+  BucketAccessControl,
+  HttpMethods,
+  ObjectOwnership,
+} from "aws-cdk-lib/aws-s3";
 import { CloudFrontToS3 } from "@aws-solutions-constructs/aws-cloudfront-s3";
 
 export default class StaticAppStack extends Stack {
@@ -12,8 +17,16 @@ export default class StaticAppStack extends Stack {
 
     this.appBucket = new Bucket(this, "dodo-app-bucket", {
       bucketName: "dodo-app",
+      removalPolicy: RemovalPolicy.DESTROY,
+      objectOwnership: ObjectOwnership.OBJECT_WRITER,
       publicReadAccess: true,
-      accessControl: BucketAccessControl.PUBLIC_READ,
+      blockPublicAccess: {
+        blockPublicAcls: false,
+        blockPublicPolicy: false,
+        ignorePublicAcls: false,
+        restrictPublicBuckets: false,
+      },
+      // accessControl: BucketAccessControl.PUBLIC_READ,
       cors: [
         {
           allowedMethods: [HttpMethods.GET, HttpMethods.HEAD],
@@ -32,7 +45,7 @@ export default class StaticAppStack extends Stack {
       existingBucketObj: this.appBucket,
       insertHttpSecurityHeaders: true,
       cloudFrontDistributionProps: {
-        domainNames: ["niclas.tech"],
+        domainNames: ["dodo.niclas.tech"],
         priceClass: PriceClass.PRICE_CLASS_100,
         certificate,
       },
