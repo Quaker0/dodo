@@ -1,7 +1,7 @@
 import { BrowserRouter as Router, Route, Routes, Link } from "react-router-dom";
 import TodoPage from "./pages/TodoPage";
 import ListPage from "./pages/ListPage";
-import logo from "/dodo2.png";
+import logo from "/chirp.svg";
 import TodoContext from "./lib/TodoContext";
 import { useEffect, useState } from "react";
 import { Todo, TodoList } from "types/todo-types";
