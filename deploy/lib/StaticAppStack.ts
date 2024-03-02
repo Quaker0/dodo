@@ -17,7 +17,7 @@ export default class StaticAppStack extends Stack {
       cors: [
         {
           allowedMethods: [HttpMethods.GET, HttpMethods.HEAD],
-          allowedOrigins: ["niclas.tech/dodo"],
+          allowedOrigins: ["niclas.tech"],
         },
       ],
     });

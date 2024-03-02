@@ -1,6 +1,7 @@
 import { App, Environment, Tags } from "aws-cdk-lib";
 import ServerStack from "./lib/ServerStack";
 import InfraStack from "./lib/InfraStack";
+import StaticAppStack from "./lib/StaticAppStack";
 
 const app = new App();
 const env: Environment = { region: "eu-north-1" };
@@ -15,3 +16,6 @@ const serverStack = new ServerStack(app, "ServerStack", {
   todoTaskTable: infra.todoTaskTable,
 });
 Tags.of(serverStack).add("service", "dodo-server");
+
+const appStack = new StaticAppStack(app, "AppStack", { env: app });
+Tags.of(appStack).add("service", "dodo-server");
