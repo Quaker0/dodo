@@ -26,7 +26,7 @@ const io = new Server<
   ServerToClientEvents,
   undefined,
   SocketData
->(server, { cors: { origin: "http://localhost" } });
+>(server, { cors: { origin: ["localhost", "niclas.tech"] } });
 const sessionStore = new InMemorySessionStore();
 
 const lists: Record<string, TodoList> = {};

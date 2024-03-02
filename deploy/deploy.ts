@@ -16,6 +16,3 @@ const serverStack = new ServerStack(app, "ServerStack", {
   todoTaskTable: infra.todoTaskTable,
 });
 Tags.of(serverStack).add("service", "dodo-server");
-
-const appStack = new StaticAppStack(app, "AppStack", { env });
-Tags.of(appStack).add("service", "dodo-server");
