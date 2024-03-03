@@ -12,10 +12,6 @@ export default class InfraStack extends Stack {
     super(scope, id, props);
 
     this.vpc = new Vpc(this, "infra-vpc");
-    this.vpc.addGatewayEndpoint("DynamoDBGatewayEndpoint", {
-      service: GatewayVpcEndpointAwsService.DYNAMODB,
-    });
-
     this.cluster = new Cluster(this, "server-cluster", {
       vpc: this.vpc,
     });
