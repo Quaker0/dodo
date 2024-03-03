@@ -20,8 +20,12 @@ In the deploy folder run:
 npm cdk deploy
 ```
 
+## Technical background
+
 The app is hosted on S3 and can be reached on this URL: https://dodo-app.niclas.tech.
 The server is deployed via CDK to a Fargate service in AWS and is reachable here: https://dodo.niclas.tech and here wss://dodo.niclas.tech
+
+I chose tailwind because it personally goes faster developing that way and it's not fun to write css. I'm deploying the app with Vite because it's fast and almost no config. Error handling is a little sparse as it's very much a design desision how to show it and I didn't have much time to go through all possible errors. Apart from that I enjoyed spending some time learning HTML5 drag-and-drop and socket.io which are featured heavily in this project.
 
 ## User stories
 
