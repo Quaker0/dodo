@@ -1,12 +1,12 @@
 import { BrowserRouter as Router, Route, Routes, Link } from "react-router-dom";
-import TodoPage from "./pages/TodoPage";
-import ListPage from "./pages/ListPage";
+import TodoPage from "./TodoPage";
+import ListPage from "./ListPage";
 import logo from "/chirp.svg";
-import TodoContext from "./lib/TodoContext";
+import TodoContext from "../lib/TodoContext";
 import { useEffect, useState } from "react";
 import { TodoTask, TodoList } from "types/todo-types";
 import { Dictionary, keyBy } from "lodash";
-import SocketWrapper from "./lib/socket";
+import SocketWrapper from "../lib/socket";
 
 const socket = new SocketWrapper();
 
