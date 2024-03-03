@@ -8,7 +8,7 @@
   "scripts": {
     "dev": "vite",
     "build": "rm -rf dist && tsc && vite build",
-    "deploy": "aws s3 sync dist/ s3://dodo-app/ --acl public-read --cache-control max-age=3600",
+    "deploy": "aws s3 sync dist/ s3://dodo-app.niclas.tech/ --acl public-read --cache-control max-age=3600",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "tsc": "tsc"
   },

@@ -14,14 +14,11 @@ import {
 import {
   ApplicationLoadBalancer,
   ApplicationProtocol,
-  ListenerAction,
 } from "aws-cdk-lib/aws-elasticloadbalancingv2";
 import { join } from "path";
 
 interface ServerStackProps extends StackProps {
   cluster: Cluster;
-  todoTaskTable: Table;
-  todoListTable: Table;
 }
 
 export default class ServerStack extends Stack {
@@ -30,8 +27,6 @@ export default class ServerStack extends Stack {
 
     const taskDefinition = new FargateTaskDefinition(this, "service-task");
 
-    props.todoTaskTable.grantReadWriteData(taskDefinition.taskRole);
-    props.todoListTable.grantReadWriteData(taskDefinition.taskRole);
     const dockerImageAsset = new DockerImageAsset(this, "inline-image", {
       directory: join(__dirname, "..", "..", "services"),
     });
@@ -40,10 +35,6 @@ export default class ServerStack extends Stack {
 
     const containerDef = taskDefinition.addContainer("server-container", {
       image: ContainerImage.fromDockerImageAsset(dockerImageAsset),
-      environment: {
-        TODO_TASK_TABLE_NAME: props.todoTaskTable.tableName,
-        TODO_LIST_TABLE_NAME: props.todoListTable.tableName,
-      },
       logging: LogDrivers.awsLogs({
         streamPrefix: "dodo-server",
         logRetention: 30,
@@ -59,8 +50,8 @@ export default class ServerStack extends Stack {
       taskDefinition,
       vpcSubnets: { subnetType: SubnetType.PRIVATE_WITH_EGRESS },
       cluster: props.cluster,
-      minHealthyPercent: 50,
-      maxHealthyPercent: 200,
+      minHealthyPercent: 0,
+      maxHealthyPercent: 100,
       desiredCount: 1,
       securityGroups: [securityGroup],
       propagateTags: PropagatedTagSource.TASK_DEFINITION,

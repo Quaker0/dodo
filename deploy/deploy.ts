@@ -11,7 +11,5 @@ Tags.of(infra).add("service", "dodo-infra");
 const serverStack = new ServerStack(app, "ServerStack", {
   env,
   cluster: infra.cluster,
-  todoListTable: infra.todoListTable,
-  todoTaskTable: infra.todoTaskTable,
 });
 Tags.of(serverStack).add("service", "dodo-server");
