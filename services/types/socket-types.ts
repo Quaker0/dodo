@@ -1,25 +1,25 @@
 import { TodoTask, TodoList } from "./todo-types";
 
 export interface ServerToClientEvents {
-  todo: (listId: string, t: TodoTask) => void;
-  todos: (t: Record<string, Record<string, TodoTask>>) => void;
+  task: (listId: string, t: TodoTask) => void;
+  tasks: (t: Record<string, Record<string, TodoTask>>) => void;
   session: (s: SocketData) => void;
-  todoLists: (l: TodoList[]) => void;
+  lists: (l: TodoList[]) => void;
   list: (l: TodoList) => void;
 }
 
 export interface ClientToServerEvents {
-  newTodo: (
+  createTask: (
     listId: string,
     subject: string,
     callback: ({ success, err }: { success: boolean; err?: string }) => void
   ) => void;
-  updateTodo: (
+  updateTask: (
     listId: string,
-    todo: TodoTask,
+    task: TodoTask,
     callback: ({ success, err }: { success: boolean; err?: string }) => void
   ) => void;
-  moveTodo: (
+  moveTask: (
     listId: string,
     todoId: string,
     toParentId: string,

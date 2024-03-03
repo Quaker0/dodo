@@ -21,7 +21,7 @@ export default function TodoPanel({
   onNewTodoClick,
   onChangeTodoClick,
 }: TodoListProps) {
-  const { socket, todoLists } = useContext(TodoContext);
+  const { socket, lists } = useContext(TodoContext);
 
   const [dragItemId, setDragItemId] = useState<string>();
   const [dragOverItemId, setDragOverItemId] = useState<string>();
@@ -73,11 +73,11 @@ export default function TodoPanel({
       if (parentId === dragItemId) {
         parentId = todos?.[dragItemId]?.parentId || todoList.id;
       }
-      socket?.sendMoveTodo(
+      socket?.sendMoveTask(
         listId,
         dragItemId,
         parentId,
-        todoLists[parentId].order.indexOf(dragOverItemId),
+        lists[parentId].order.indexOf(dragOverItemId),
         ({ success, err }) => {
           if (!success) {
             console.error(err);
@@ -99,7 +99,7 @@ export default function TodoPanel({
       dragOverItemId &&
       dragItemId !== dragOverItemId
     ) {
-      socket?.sendMoveTodo(
+      socket?.sendMoveTask(
         listId,
         dragItemId,
         dragOverItemId,
@@ -119,8 +119,8 @@ export default function TodoPanel({
     removeDragHoverEffect(dragOverItemId);
   }
 
-  if (!listId || !todoLists[listId]) {
-    if (todoLists) {
+  if (!listId || !lists[listId]) {
+    if (lists) {
       return (
         <div className="text-center">Nothing here... keep on waddling</div>
       );
@@ -129,7 +129,7 @@ export default function TodoPanel({
     return;
   }
 
-  const todoList = todoLists[listId];
+  const todoList = lists[listId];
 
   return (
     <div className="flex flex-col items-center gap-3">

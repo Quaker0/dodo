@@ -4,7 +4,7 @@ import { uid } from "uid";
 export class List implements TodoList {
   id: string;
   order: string[] = [];
-  grandfather = true;
+  main = true;
 
   constructor(public title: string) {
     this.id = uid();

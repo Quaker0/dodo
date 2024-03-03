@@ -6,13 +6,13 @@ import { TodoTask } from "types/todo-types";
 
 export default function TodoPage() {
   const { listId } = useParams();
-  const { socket, todos } = useContext(TodoContext);
+  const { socket, tasks } = useContext(TodoContext);
 
   useEffect(() => {
     if (socket && listId) {
       socket.joinList(listId, ({ success, err }) => {
         if (!success) {
-          console.error("joinList success", success, err);
+          console.error("joinList error", err);
         }
       });
     }
@@ -26,7 +26,7 @@ export default function TodoPage() {
     if (socket && listId) {
       socket.sendNewTodo(listId, subject, ({ success, err }) => {
         if (!success) {
-          console.error("newTodo", success, err);
+          console.error("createTask", err);
         }
       });
     }
@@ -43,7 +43,7 @@ export default function TodoPage() {
       };
       socket.sendUpdatedTodo(listId, updatedTodo, ({ success, err }) => {
         if (!success) {
-          console.error("setTodo", success, err);
+          console.error("setTodo", err);
         }
       });
     }
@@ -51,7 +51,7 @@ export default function TodoPage() {
 
   return (
     <TodoPanel
-      todos={todos?.[listId]}
+      todos={tasks?.[listId]}
       onNewTodoClick={onNewTodoClick}
       onChangeTodoClick={onTodoChangeClick}
       listId={listId}

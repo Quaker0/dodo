@@ -1,5 +1,6 @@
 import cors from "cors";
 import express from "express";
+import helmet from "helmet";
 import { createServer } from "node:http";
 import { Server } from "socket.io";
 import {
@@ -7,13 +8,12 @@ import {
   ServerToClientEvents,
   SocketData,
 } from "types/socket-types";
-import { TodoTask, TodoList } from "types/todo-types";
 import { uid } from "uid";
-import { pick } from "lodash";
+import TodoListDB from "./TodoListDB";
+import TodoTaskDB from "./TodoTaskDB";
+import { addListListeners } from "./helpers";
 import { InMemorySessionStore } from "./sessionStore";
-import { List, Todo } from "./todoClasses";
-import { addListListeners, getTodoLists } from "./helpers";
-import helmet from "helmet";
+import { List, Todo as Task } from "./todoClasses";
 
 const port = process.env.PORT || 3000;
 
@@ -33,9 +33,8 @@ const io = new Server<
   },
 });
 const sessionStore = new InMemorySessionStore();
-
-const lists: Record<string, TodoList> = {};
-const todos: Record<string, Record<string, TodoTask>> = {};
+const todoListDB = new TodoListDB();
+const todoTaskDB = new TodoTaskDB();
 
 app.use(helmet.hidePoweredBy());
 app.use(helmet.noSniff());
@@ -68,41 +67,37 @@ io.on("connection", (socket) => {
     sessionId: socket.data.sessionId,
   });
 
-  const joinedLists = getTodoLists(session.rooms, lists);
-  socket.timeout(1000).emit("todoLists", joinedLists);
-  socket.timeout(1000).emit(
-    "todos",
-    pick(
-      todos,
-      joinedLists.map((l) => l.id)
-    )
-  );
+  const joinedLists = [...(session.rooms || [])]
+    .map((listId) => todoListDB.get(listId))
+    .filter(Boolean);
+  socket.timeout(1000).emit("lists", joinedLists);
+  socket
+    .timeout(1000)
+    .emit("tasks", todoTaskDB.list(joinedLists.map((l) => l.id)));
 
   socket.on("createTodoList", (title, callback) => {
     if (!title) {
       return callback({ success: false, err: "Missing title" });
     }
     const newList = new List(title);
-    lists[newList.id] = newList;
+    todoListDB.set(newList);
     addListListeners(socket, sessionStore, newList.id);
-    socket.emit("list", newList);
+    socket.timeout(1000).emit("list", newList);
     callback({ success: true, id: newList.id });
   });
 
   socket.on("joinList", (listId, callback) => {
-    if (listId in lists) {
+    if (todoListDB.exists(listId)) {
       socket.join(listId);
       if (!sessionStore.findSession(listId)) {
         addListListeners(socket, sessionStore, listId);
-        const joinedLists = getTodoLists(session.rooms, lists);
-        socket.timeout(1000).emit("todoLists", joinedLists);
-        socket.timeout(1000).emit(
-          "todos",
-          pick(
-            todos,
-            joinedLists.map((l) => l.id)
-          )
-        );
+        const joinedLists = [...(session.rooms || [])]
+          .map((listId) => todoListDB.get(listId))
+          .filter(Boolean);
+        socket.timeout(1000).emit("lists", joinedLists);
+        socket
+          .timeout(1000)
+          .emit("tasks", todoTaskDB.list(joinedLists.map((l) => l.id)));
       }
       callback({ success: true });
     } else {
@@ -110,70 +105,61 @@ io.on("connection", (socket) => {
     }
   });
 
-  socket.on("newTodo", (listId, subject, callback) => {
-    const newTodo = new Todo(listId, subject, false);
-    if (!lists[listId] || !newTodo.isValid()) {
-      callback({ success: true, err: "Invalid parameters" });
+  socket.on("createTask", (listId, subject, callback) => {
+    const newTask = new Task(listId, subject, false);
+    if (!todoListDB.exists(listId) || !newTask.isValid()) {
+      callback({ success: false, err: "Invalid parameters" });
     }
-    if (!todos[listId]) {
-      todos[listId] = {};
-    }
-    todos[listId][newTodo.id] = newTodo;
-    lists[listId].order.push(newTodo.id);
+    todoTaskDB.set(newTask);
+    todoListDB.addChildLink(listId, newTask.id);
 
-    io.to(listId).emit("todo", listId, newTodo);
-    io.to(listId).emit("list", lists[listId]);
+    io.to(listId).emit("task", listId, newTask);
+    io.to(listId).emit("list", todoListDB.get(listId));
     callback({ success: true });
   });
 
-  socket.on("updateTodo", (listId, todo, callback) => {
-    if (!Todo.isValid(todo)) {
+  socket.on("updateTask", (listId, task, callback) => {
+    if (!Task.isValid(task)) {
       return callback({ success: false, err: "Invalid todo schema" });
     }
-    todos[listId][todo.id] = todo;
-    io.to(listId).emit("todo", listId, todo);
+    todoTaskDB.set(task);
+    io.to(listId).emit("task", listId, task);
     callback({ success: true });
   });
 
   function removeChildFromParent(parentId: string, childTodoId: string) {
-    if (!lists[parentId]) return;
-    const idxToRemove = lists[parentId].order?.indexOf(childTodoId);
-    if (idxToRemove != null && idxToRemove >= 0) {
-      lists[parentId].order.splice(idxToRemove, 1);
+    if (!todoListDB.exists(parentId)) {
+      return;
     }
+    todoListDB.removeChildLink(parentId, childTodoId);
 
-    if (!lists[parentId].order?.length && !lists[parentId].grandfather) {
+    const parentList = todoListDB.get(parentId);
+    if (!parentList.order?.length && !parentList.main) {
       // If last child, remove parent->child link entirely
-      delete lists[parentId];
+      todoListDB.remove(parentId);
     }
   }
 
   function moveChildrenToGrandparent(
     listId: string,
-    todoId: string,
+    taskId: string,
     fromParentId: string,
     toParentId: string
   ) {
-    const idx = lists[fromParentId].order.indexOf(todoId);
-    lists[todoId].order.forEach((orphanedTodoId) => {
-      lists[fromParentId].order.splice(idx, 0, orphanedTodoId);
-      todos[listId][orphanedTodoId].parentId = fromParentId;
-      removeChildFromParent(todoId, orphanedTodoId);
+    const orderIdx = todoListDB.get(fromParentId).order.indexOf(taskId);
+    todoListDB.get(taskId).order.forEach((orphanedTodoId) => {
+      todoListDB.addChildLink(fromParentId, orphanedTodoId, orderIdx);
+      todoTaskDB.setParentId(listId, orphanedTodoId, fromParentId);
+      removeChildFromParent(taskId, orphanedTodoId);
     });
-    removeChildFromParent(toParentId, todoId);
-    delete lists[todoId];
+    removeChildFromParent(toParentId, taskId);
+    todoListDB.remove(taskId);
   }
 
-  function appendChild(todoId: string, toParentId: string, toOrderIdx: number) {
-    const newOrder = [...lists[toParentId].order];
-    newOrder.splice(toOrderIdx, 0, todoId);
-    lists[toParentId] = { ...lists[toParentId], order: newOrder };
-  }
-
-  socket.on("moveTodo", (listId, todoId, toParentId, toOrderIdx, callback) => {
+  socket.on("moveTask", (listId, taskId, toParentId, toOrderIdx, callback) => {
     if (
       !listId ||
-      !todoId ||
+      !taskId ||
       !toParentId ||
       !isFinite(toOrderIdx) ||
       toOrderIdx < 0
@@ -181,38 +167,45 @@ io.on("connection", (socket) => {
       return callback({ success: false, err: "Invalid parameters" });
     }
 
-    const fromParentId = todos[listId][todoId].parentId || listId;
-    if (lists[todoId]) {
-      // Swapping tasks in the same tree, will create orphans unless we move children up one step
-      moveChildrenToGrandparent(listId, todoId, fromParentId, toParentId);
+    const fromParentId = todoTaskDB.get(listId, taskId).parentId || listId;
+    if (todoListDB.exists(taskId)) {
+      // The task has children, move children up one step to not create orphans
+      moveChildrenToGrandparent(listId, taskId, fromParentId, toParentId);
     }
-    removeChildFromParent(fromParentId, todoId);
+    removeChildFromParent(fromParentId, taskId);
 
-    if (!lists[toParentId]) {
+    if (!todoListDB.exists(toParentId)) {
       // toParentId is a main task, create the parent->child link
-      lists[toParentId] = {
+      todoListDB.set({
         id: toParentId,
-        grandfather: false,
-        order: [todoId],
-      };
+        main: false,
+        order: [taskId],
+      });
     } else {
-      appendChild(todoId, toParentId, toOrderIdx);
+      todoListDB.addChildLink(toParentId, taskId, toOrderIdx);
     }
 
-    todos[listId][todoId].parentId = toParentId;
+    todoTaskDB.setParentId(listId, taskId, toParentId);
 
     addListListeners(
       socket,
       sessionStore,
       listId,
-      todoId,
+      taskId,
       toParentId,
       fromParentId
     );
-    io.to(listId).timeout(1000).emit("todo", listId, todos[listId][todoId]);
     io.to(listId)
       .timeout(1000)
-      .emit("todoLists", getTodoLists(session.rooms, lists));
+      .emit("task", listId, todoTaskDB.get(listId, taskId));
+    io.to(listId)
+      .timeout(1000)
+      .emit(
+        "lists",
+        [...(session.rooms || [])]
+          .map((listId) => todoListDB.get(listId))
+          .filter(Boolean)
+      );
 
     callback({ success: true });
   });

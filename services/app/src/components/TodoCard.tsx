@@ -79,12 +79,12 @@ export function RecursiveTodoCard(
     child?: boolean;
   }
 ) {
-  const { todos, todoLists } = useContext(TodoContext);
+  const { tasks, lists } = useContext(TodoContext);
   const { todo } = props;
   if (!todo) {
     return;
   }
-  const children = todoLists[todo.id]?.order;
+  const children = lists[todo.id]?.order;
   return (
     <>
       <div className="flex flex-row items-center gap-2">
@@ -100,7 +100,7 @@ export function RecursiveTodoCard(
           >
             <RecursiveTodoCard
               {...props}
-              todo={todos[todo.listId][childId]}
+              todo={tasks[todo.listId][childId]}
               child
             />
           </div>

@@ -4,11 +4,11 @@ import SocketWrapper from "./socket";
 
 const TodoContext = createContext<{
   socket: SocketWrapper | undefined;
-  todoLists: Record<string, TodoList>;
-  todos: Record<string, Record<string, TodoTask>>;
+  lists: Record<string, TodoList>;
+  tasks: Record<string, Record<string, TodoTask>>;
 }>({
   socket: undefined,
-  todoLists: {},
-  todos: {},
+  lists: {},
+  tasks: {},
 });
 export default TodoContext;

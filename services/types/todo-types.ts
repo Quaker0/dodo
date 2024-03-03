@@ -10,5 +10,5 @@ export type TodoList = {
   id: string;
   order: string[];
   title?: string;
-  grandfather?: boolean;
+  main?: boolean;
 };

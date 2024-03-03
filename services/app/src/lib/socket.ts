@@ -39,7 +39,7 @@ export default class SocketWrapper {
   }
 
   onTodoLists(callback: (l: TodoList[]) => void) {
-    this.socket.on("todoLists", (newTodoLists) => {
+    this.socket.on("lists", (newTodoLists) => {
       callback(newTodoLists);
     });
   }
@@ -50,15 +50,15 @@ export default class SocketWrapper {
     });
   }
 
-  onTodo(callback: (listId: string, todo: TodoTask) => void) {
-    this.socket.on("todo", (listId, todo) => {
-      callback(listId, todo);
+  onTask(callback: (listId: string, todo: TodoTask) => void) {
+    this.socket.on("task", (listId, task) => {
+      callback(listId, task);
     });
   }
 
-  onTodos(callback: (todos: Record<string, Record<string, TodoTask>>) => void) {
-    this.socket.on("todos", (todos) => {
-      callback(todos);
+  onTasks(callback: (todos: Record<string, Record<string, TodoTask>>) => void) {
+    this.socket.on("tasks", (tasks) => {
+      callback(tasks);
     });
   }
 
@@ -75,7 +75,7 @@ export default class SocketWrapper {
     }) => void
   ) {
     this.socket
-      ?.timeout(1000)
+      ?.timeout(2_000)
       .emitWithAck("createTodoList", title)
       .then(callback)
       .catch((ex) => callback({ success: false, err: ex.message }));
@@ -86,7 +86,7 @@ export default class SocketWrapper {
     callback: ({ success, err }: { success: boolean; err?: string }) => void
   ) {
     this.socket
-      ?.timeout(1000)
+      ?.timeout(2_000)
       .emitWithAck("joinList", listId)
       .then(callback)
       .catch((ex) => callback({ success: false, err: ex.message }));
@@ -98,8 +98,8 @@ export default class SocketWrapper {
     callback: ({ success, err }: { success: boolean; err?: string }) => void
   ) {
     this.socket
-      .timeout(1000)
-      .emitWithAck("newTodo", listId, subject)
+      .timeout(2_000)
+      .emitWithAck("createTask", listId, subject)
       .then(callback)
       .catch((ex) => callback({ success: false, err: ex.message }));
   }
@@ -110,13 +110,13 @@ export default class SocketWrapper {
     callback: ({ success, err }: { success: boolean; err?: string }) => void
   ) {
     this.socket
-      .timeout(1000)
-      .emitWithAck("updateTodo", listId, todo)
+      .timeout(2_000)
+      .emitWithAck("updateTask", listId, todo)
       .then(callback)
       .catch((ex) => callback({ success: false, err: ex.message }));
   }
 
-  sendMoveTodo(
+  sendMoveTask(
     listId: string,
     todoId: string,
     toParentId: string,
@@ -124,8 +124,8 @@ export default class SocketWrapper {
     callback: ({ success, err }: { success: boolean; err?: string }) => void
   ) {
     this.socket
-      .timeout(1000)
-      .emitWithAck("moveTodo", listId, todoId, toParentId, toOrderIdx)
+      .timeout(2_000)
+      .emitWithAck("moveTask", listId, todoId, toParentId, toOrderIdx)
       .then(callback)
       .catch((ex) => callback({ success: false, err: ex.message }));
   }

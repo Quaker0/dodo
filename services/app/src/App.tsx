@@ -11,15 +11,15 @@ import SocketWrapper from "./lib/socket";
 const socket = new SocketWrapper();
 
 export default function App() {
-  const [todoLists, setTodoLists] = useState<Dictionary<TodoList>>({});
-  const [todos, setTodos] = useState<Dictionary<Dictionary<TodoTask>>>({});
+  const [lists, setLists] = useState<Dictionary<TodoList>>({});
+  const [tasks, setTasks] = useState<Dictionary<Dictionary<TodoTask>>>({});
 
   useEffect(() => {
-    socket.onTodos((todos) => {
-      setTodos(todos);
+    socket.onTasks((todos) => {
+      setTasks(todos);
     });
-    socket.onTodo((listId, todo) => {
-      setTodos((prevTodos) => {
+    socket.onTask((listId, todo) => {
+      setTasks((prevTodos) => {
         const newTodoList = { ...prevTodos[listId], [todo.id]: todo };
         const newTodos = {
           ...prevTodos,
@@ -30,10 +30,10 @@ export default function App() {
     });
 
     socket.onTodoLists((newLists) => {
-      setTodoLists(keyBy(newLists, "id"));
+      setLists(keyBy(newLists, "id"));
     });
     socket.onList((list) => {
-      setTodoLists((todoLists) => ({ ...todoLists, [list.id]: list }));
+      setLists((todoLists) => ({ ...todoLists, [list.id]: list }));
     });
 
     return () => {
@@ -43,7 +43,7 @@ export default function App() {
 
   return (
     <Router>
-      <TodoContext.Provider value={{ socket, todoLists, todos }}>
+      <TodoContext.Provider value={{ socket, lists, tasks }}>
         <div className="pb-10">
           <header className="flex flex-row items-center justify-center w-full">
             <Link to="/">
