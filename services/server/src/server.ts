@@ -85,7 +85,7 @@ io.on("connection", (socket) => {
     const newList = new List(title);
     lists[newList.id] = newList;
     addListListeners(socket, sessionStore, newList.id);
-    socket.emit("todoLists", getTodoLists(session.rooms, lists));
+    socket.emit("list", newList);
     callback({ success: true, id: newList.id });
   });
 
@@ -148,6 +148,28 @@ io.on("connection", (socket) => {
     }
   }
 
+  function moveChildrenToGrandparent(
+    listId: string,
+    todoId: string,
+    fromParentId: string,
+    toParentId: string
+  ) {
+    const idx = lists[fromParentId].order.indexOf(todoId);
+    lists[todoId].order.forEach((orphanedTodoId) => {
+      lists[fromParentId].order.splice(idx, 0, orphanedTodoId);
+      todos[listId][orphanedTodoId].parentId = fromParentId;
+      removeChildFromParent(todoId, orphanedTodoId);
+    });
+    removeChildFromParent(toParentId, todoId);
+    delete lists[todoId];
+  }
+
+  function appendChild(todoId: string, toParentId: string, toOrderIdx: number) {
+    const newOrder = [...lists[toParentId].order];
+    newOrder.splice(toOrderIdx, 0, todoId);
+    lists[toParentId] = { ...lists[toParentId], order: newOrder };
+  }
+
   socket.on("moveTodo", (listId, todoId, toParentId, toOrderIdx, callback) => {
     if (
       !listId ||
@@ -158,34 +180,25 @@ io.on("connection", (socket) => {
     ) {
       return callback({ success: false, err: "Invalid parameters" });
     }
-    const fromParentId = todos[listId][todoId].parentId || listId;
 
+    const fromParentId = todos[listId][todoId].parentId || listId;
     if (lists[todoId]) {
-      // Found future orphans, moving children to the grandparent
-      const idx = lists[fromParentId].order.indexOf(todoId);
-      lists[todoId].order.forEach((orphanedTodoId) => {
-        lists[fromParentId].order.splice(idx, 0, orphanedTodoId);
-        todos[listId][orphanedTodoId].parentId = fromParentId;
-        removeChildFromParent(todoId, orphanedTodoId);
-      });
-      removeChildFromParent(toParentId, todoId);
-      delete lists[todoId];
+      // Swapping tasks in the same tree, will create orphans unless we move children up one step
+      moveChildrenToGrandparent(listId, todoId, fromParentId, toParentId);
     }
     removeChildFromParent(fromParentId, todoId);
 
     if (!lists[toParentId]) {
-      // toParentId is not already a parent, create the parent->child link
+      // toParentId is a main task, create the parent->child link
       lists[toParentId] = {
         id: toParentId,
         grandfather: false,
         order: [todoId],
       };
     } else {
-      // Add another child to parent
-      const newOrder = [...lists[toParentId].order];
-      newOrder.splice(toOrderIdx, 0, todoId);
-      lists[toParentId] = { ...lists[toParentId], order: newOrder };
+      appendChild(todoId, toParentId, toOrderIdx);
     }
+
     todos[listId][todoId].parentId = toParentId;
 
     addListListeners(
@@ -196,7 +209,6 @@ io.on("connection", (socket) => {
       toParentId,
       fromParentId
     );
-
     io.to(listId).timeout(1000).emit("todo", listId, todos[listId][todoId]);
     io.to(listId)
       .timeout(1000)

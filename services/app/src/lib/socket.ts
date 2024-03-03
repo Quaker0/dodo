@@ -6,6 +6,7 @@ const SESSION_ID_KEY = "dodo-session-id";
 
 export default class SocketWrapper {
   private socket: Socket<ServerToClientEvents, ClientToServerEvents>;
+
   constructor() {
     this.socket = io(`${process.env.SERVER_URL}`, {
       withCredentials: true,
